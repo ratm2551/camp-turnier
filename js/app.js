@@ -1,6 +1,7 @@
-// Setup-Assistent: CSV hochladen -> Turnierform wählen -> Zeit/Plätze -> erstellen.
+// Setup-Assistent: Teilnehmer (CSV oder nur Anzahl) -> Turnierform wählen -> Zeit/Plätze -> erstellen.
 
 const state = {
+  inputMode: "csv", // "csv" | "count"
   participants: [],
   hasTeamColumn: false,
   teams: [],
@@ -10,7 +11,33 @@ const state = {
 
 const el = (id) => document.getElementById(id);
 
-// ---------- Schritt 1: CSV ----------
+// ---------- Schritt 1: Teilnehmer ----------
+
+el("modeBtnCsv").addEventListener("click", () => setInputMode("csv"));
+el("modeBtnCount").addEventListener("click", () => setInputMode("count"));
+
+function setInputMode(mode) {
+  state.inputMode = mode;
+  el("modeBtnCsv").classList.toggle("active", mode === "csv");
+  el("modeBtnCount").classList.toggle("active", mode === "count");
+  el("csvBlock").style.display = mode === "csv" ? "block" : "none";
+  el("countBlock").style.display = mode === "count" ? "block" : "none";
+
+  if (mode === "count") {
+    el("teamSizeBlock").style.display = "block";
+    if (el("ageGroupRows").children.length === 0) {
+      addAgeGroupRow("U8", 8);
+      addAgeGroupRow("U10", 8);
+    }
+    updateParticipantsFromCount();
+  } else {
+    state.participants = [];
+    state.teams = [];
+    el("teamSizeBlock").style.display = "none";
+    el("participantsSummary").innerHTML = "";
+    el("card-format").style.display = "none";
+  }
+}
 
 el("csvFile").addEventListener("change", async (e) => {
   const file = e.target.files[0];
@@ -21,7 +48,7 @@ el("csvFile").addEventListener("change", async (e) => {
   if (result.error) {
     errBox.textContent = result.error;
     errBox.style.display = "block";
-    el("csvSummary").innerHTML = "";
+    el("participantsSummary").innerHTML = "";
     return;
   }
   errBox.style.display = "none";
@@ -36,13 +63,17 @@ el("csvFile").addEventListener("change", async (e) => {
     rebuildAutoTeams();
   }
 
-  renderCsvSummary();
+  renderParticipantsSummary();
   el("card-format").style.display = "block";
 });
 
 el("teamSize").addEventListener("input", () => {
-  rebuildAutoTeams();
-  renderCsvSummary();
+  if (state.inputMode === "csv") {
+    rebuildAutoTeams();
+    renderParticipantsSummary();
+  } else {
+    updateParticipantsFromCount();
+  }
   recomputeCapacity();
 });
 
@@ -51,10 +82,71 @@ function rebuildAutoTeams() {
   state.teams = CsvParser.autoBuildTeams(state.participants, size);
 }
 
-function renderCsvSummary() {
-  el("csvSummary").innerHTML =
-    `<p class="hint">${state.participants.length} Teilnehmer erkannt · <strong>${state.teams.length} Teams</strong>` +
-    (state.hasTeamColumn ? " (aus CSV-Spalte)" : " (automatisch gebildet)") + `</p>`;
+// ---------- Schritt 1b: Nur Anzahl (mit/ohne Altersgruppen) ----------
+
+el("useAgeGroups").addEventListener("change", () => {
+  const checked = el("useAgeGroups").checked;
+  el("totalCountBlock").style.display = checked ? "none" : "block";
+  el("ageGroupBlock").style.display = checked ? "block" : "none";
+  if (checked && el("ageGroupRows").children.length === 0) {
+    addAgeGroupRow("U8", 8);
+    addAgeGroupRow("U10", 8);
+  }
+  updateParticipantsFromCount();
+});
+
+el("totalPlayers").addEventListener("input", updateParticipantsFromCount);
+el("btnAddAgeGroup").addEventListener("click", () => {
+  addAgeGroupRow("", 8);
+  updateParticipantsFromCount();
+});
+
+function addAgeGroupRow(label, count) {
+  const row = document.createElement("div");
+  row.className = "row";
+  row.style.cssText = "align-items:center;margin-bottom:8px";
+  row.innerHTML = `
+    <input type="text" class="ageGroupLabel" placeholder="z.B. U10" value="${label}" />
+    <input type="number" class="ageGroupCount" min="1" value="${count}" style="flex:0 0 90px" />
+    <button type="button" class="btn btn-secondary btnRemoveAgeGroup" style="flex:0 0 auto;width:auto;padding:8px 10px">✕</button>
+  `;
+  el("ageGroupRows").appendChild(row);
+  row.querySelector(".btnRemoveAgeGroup").addEventListener("click", () => {
+    row.remove();
+    updateParticipantsFromCount();
+  });
+  row.querySelectorAll("input").forEach((inp) => inp.addEventListener("input", updateParticipantsFromCount));
+}
+
+function updateParticipantsFromCount() {
+  const teamSize = parseInt(el("teamSize").value, 10) || 6;
+  let entries;
+  if (el("useAgeGroups").checked) {
+    entries = Array.from(el("ageGroupRows").children).map((row) => ({
+      label: row.querySelector(".ageGroupLabel").value.trim() || "Gruppe",
+      count: parseInt(row.querySelector(".ageGroupCount").value, 10) || 0,
+    }));
+  } else {
+    entries = [{ label: "", count: parseInt(el("totalPlayers").value, 10) || 0 }];
+  }
+  state.teams = CsvParser.buildTeamsFromCounts(entries, teamSize);
+  state.participants = state.teams.flatMap((t) => t.players.map((p) => ({ name: p, team: t.name })));
+
+  renderParticipantsSummary();
+  el("card-format").style.display = state.teams.length > 0 ? "block" : "none";
+  recomputeCapacity();
+}
+
+function renderParticipantsSummary() {
+  const totalPlayers = state.teams.reduce((sum, t) => sum + t.players.length, 0);
+  const sourceLabel =
+    state.inputMode === "csv"
+      ? state.hasTeamColumn
+        ? " (aus CSV-Spalte)"
+        : " (automatisch gebildet)"
+      : " (ohne Namensliste)";
+  el("participantsSummary").innerHTML =
+    `<p class="hint">${totalPlayers} Teilnehmer · <strong>${state.teams.length} Teams</strong>${sourceLabel}</p>`;
 }
 
 // ---------- Schritt 2: Format ----------

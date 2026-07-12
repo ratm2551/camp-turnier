@@ -32,18 +32,43 @@
     </div>
 
     <div class="card">
-      <h2><span class="step">1</span>Teilnehmer hochladen</h2>
+      <h2><span class="step">1</span>Teilnehmer</h2>
       <label for="turnierName">Name des Turniers</label>
       <input type="text" id="turnierName" placeholder="z.B. Camp Platz 3 - Freitag" />
 
-      <label for="csvFile">CSV-Datei (aus Excel exportiert)</label>
-      <input type="file" id="csvFile" accept=".csv,text/csv" />
-      <p class="hint">Erste Zeile = Kopfzeile mit Spalte "Name" (Pflicht) und optional "Team".</p>
-      <div id="csvSummary"></div>
-      <div class="error" id="csvError" style="display:none"></div>
+      <div class="tabs" style="margin-top:14px">
+        <button type="button" class="tab-btn active" id="modeBtnCsv" data-mode="csv">📄 Liste hochladen</button>
+        <button type="button" class="tab-btn" id="modeBtnCount" data-mode="count">🔢 Nur Anzahl</button>
+      </div>
+
+      <div id="csvBlock">
+        <label for="csvFile">CSV-Datei (aus Excel exportiert)</label>
+        <input type="file" id="csvFile" accept=".csv,text/csv" />
+        <p class="hint">Erste Zeile = Kopfzeile mit Spalte "Name" (Pflicht) und optional "Team".</p>
+        <div class="error" id="csvError" style="display:none"></div>
+      </div>
+
+      <div id="countBlock" style="display:none">
+        <label style="display:flex;align-items:center;gap:8px;margin-top:14px">
+          <input type="checkbox" id="useAgeGroups" style="width:auto" />
+          <span style="margin:0">Nach Altersgruppen aufteilen</span>
+        </label>
+
+        <div id="totalCountBlock">
+          <label for="totalPlayers">Anzahl Spieler gesamt</label>
+          <input type="number" id="totalPlayers" min="2" value="16" />
+        </div>
+
+        <div id="ageGroupBlock" style="display:none">
+          <div id="ageGroupRows"></div>
+          <button type="button" class="btn btn-secondary" id="btnAddAgeGroup" style="margin-top:6px">+ Altersgruppe hinzufügen</button>
+        </div>
+      </div>
+
+      <div id="participantsSummary"></div>
 
       <div id="teamSizeBlock" style="display:none">
-        <label for="teamSize">Keine Team-Spalte gefunden – wie viele Spieler pro Team?</label>
+        <label for="teamSize">Wie viele Spieler pro Team?</label>
         <input type="number" id="teamSize" min="2" max="11" value="6" />
       </div>
     </div>

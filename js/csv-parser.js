@@ -69,7 +69,32 @@
     });
   }
 
-  const api = { parseCsv, autoBuildTeams, buildTeamsFromColumn };
+  // Baut Teams ohne Namensliste, nur aus (optional nach Altersgruppe) Spieleranzahlen.
+  // entries: [{ label, count }] – label leer/"" bei nur einer Gruppe ohne Altersaufteilung.
+  function buildTeamsFromCounts(entries, teamSize) {
+    const teams = [];
+    entries.forEach((entry) => {
+      const count = Math.max(0, entry.count || 0);
+      if (count <= 0) return;
+      const teamsInGroup = Math.max(1, Math.ceil(count / teamSize));
+      for (let i = 0; i < teamsInGroup; i++) {
+        const start = i * teamSize;
+        const membersCount = Math.min(teamSize, count - start);
+        if (membersCount <= 0) continue;
+        const prefix = entry.label ? entry.label + " " : "";
+        const players = Array.from({ length: membersCount }, (_, j) => `${prefix}Spieler ${start + j + 1}`);
+        teams.push({
+          id: "team_" + (teams.length + 1),
+          name: (entries.length > 1 && entry.label ? entry.label + " – " : "") + "Team " + (i + 1),
+          players,
+          ageGroup: entry.label || null,
+        });
+      }
+    });
+    return teams;
+  }
+
+  const api = { parseCsv, autoBuildTeams, buildTeamsFromColumn, buildTeamsFromCounts };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.CsvParser = api;
 })(typeof window !== "undefined" ? window : globalThis);
