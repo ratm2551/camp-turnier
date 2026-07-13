@@ -14,16 +14,17 @@
 
   function parseCsv(text) {
     const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
-    if (lines.length === 0) return { participants: [], hasTeamColumn: false, error: "Datei ist leer." };
+    if (lines.length === 0) return { participants: [], hasTeamColumn: false, hasAgeColumn: false, error: "Datei ist leer." };
 
     const delimiter = detectDelimiter(lines[0]);
     const header = lines[0].split(delimiter).map(normalizeHeader);
 
     const nameIdx = header.findIndex((h) => ["name", "teilnehmer", "spieler", "vorname"].includes(h));
     const teamIdx = header.findIndex((h) => ["team", "mannschaft", "gruppe"].includes(h));
+    const ageIdx = header.findIndex((h) => ["alter", "age", "jahrgang"].includes(h));
 
     if (nameIdx === -1) {
-      return { participants: [], hasTeamColumn: false, error: "Keine Spalte 'Name' gefunden. Erste Zeile muss eine Kopfzeile mit 'Name' sein." };
+      return { participants: [], hasTeamColumn: false, hasAgeColumn: false, error: "Keine Spalte 'Name' gefunden. Erste Zeile muss eine Kopfzeile mit 'Name' sein." };
     }
 
     const participants = [];
@@ -31,13 +32,15 @@
       const cols = lines[i].split(delimiter);
       const name = (cols[nameIdx] || "").trim();
       if (!name) continue;
+      const ageRaw = ageIdx !== -1 ? parseInt(cols[ageIdx], 10) : NaN;
       participants.push({
         name,
         team: teamIdx !== -1 ? (cols[teamIdx] || "").trim() : null,
+        age: Number.isFinite(ageRaw) ? ageRaw : null,
       });
     }
 
-    return { participants, hasTeamColumn: teamIdx !== -1, error: null };
+    return { participants, hasTeamColumn: teamIdx !== -1, hasAgeColumn: ageIdx !== -1, error: null };
   }
 
   const FAMOUS_FOOTBALLERS = [
@@ -63,19 +66,25 @@
   }
 
   // Baut Teams aus einer flachen Teilnehmerliste, wenn keine Team-Spalte vorhanden ist.
+  // Ist ein Alter bekannt, wird vorher danach sortiert, damit Teams altersgerecht
+  // (ähnliches Alter pro Team) statt in Zufallsreihenfolge gebildet werden.
   // nameStyle: "numeric" (Team 1, 2, ...) | "players" (nach berühmten Fußballern benannt)
   function autoBuildTeams(participants, teamSize, nameStyle = "numeric") {
-    const shuffled = [...participants];
-    const teamCount = Math.max(1, Math.ceil(shuffled.length / teamSize));
+    const hasAnyAge = participants.some((p) => p.age != null);
+    const sorted = [...participants];
+    if (hasAnyAge) {
+      sorted.sort((a, b) => (a.age ?? Infinity) - (b.age ?? Infinity));
+    }
+    const teamCount = Math.max(1, Math.ceil(sorted.length / teamSize));
     const footballerNames = nameStyle === "players" ? shuffledFootballerNames(teamCount) : null;
     const teams = [];
-    for (let i = 0; i < shuffled.length; i += teamSize) {
-      const members = shuffled.slice(i, i + teamSize);
+    for (let i = 0; i < sorted.length; i += teamSize) {
+      const members = sorted.slice(i, i + teamSize);
       const teamIdx = teams.length;
       teams.push({
         id: "team_" + (teamIdx + 1),
         name: footballerNames ? footballerNames[teamIdx] : "Team " + (teamIdx + 1),
-        players: members.map((m) => m.name),
+        players: members.map((m) => ({ name: m.name, age: m.age ?? null })),
       });
     }
     return teams;
@@ -86,7 +95,7 @@
     participants.forEach((p) => {
       const key = p.team || "Ohne Team";
       if (!map.has(key)) map.set(key, []);
-      map.get(key).push(p.name);
+      map.get(key).push({ name: p.name, age: p.age ?? null });
     });
     let idx = 0;
     return Array.from(map.entries()).map(([teamName, players]) => {
@@ -115,7 +124,7 @@
         const membersCount = Math.min(teamSize, count - start);
         if (membersCount <= 0) continue;
         const prefix = entry.label ? entry.label + " " : "";
-        const players = Array.from({ length: membersCount }, (_, j) => `${prefix}Spieler ${start + j + 1}`);
+        const players = Array.from({ length: membersCount }, (_, j) => ({ name: `${prefix}Spieler ${start + j + 1}`, age: null }));
         const teamLabel = footballerNames ? footballerNames[teams.length] : "Team " + (i + 1);
         teams.push({
           id: "team_" + (teams.length + 1),

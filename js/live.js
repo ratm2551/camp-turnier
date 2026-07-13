@@ -15,6 +15,15 @@ function teamName(data, id) {
   return data.teams?.[id]?.name || id;
 }
 
+// Ältere Turniere haben players als reine Namens-Strings gespeichert, neue als
+// {name, age}-Objekte - beide Formen werden hier vereinheitlicht.
+function playerName(p) {
+  return typeof p === "string" ? p : p.name;
+}
+function playerAge(p) {
+  return typeof p === "string" ? null : p.age ?? null;
+}
+
 function fmtTime(iso) {
   if (!iso) return "–";
   return new Date(iso).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
@@ -87,6 +96,16 @@ function render(data) {
     const standings = TournamentEngine.computeStandings(teams, matches.filter((m) => !m.phase || m.phase === "group"));
     html += tableHtml(standings);
   }
+  html += `</div>`;
+
+  // Teams (wer gehört zu welchem Team)
+  html += `<div class="card"><h2>👥 Teams</h2>`;
+  teams.forEach((t) => {
+    const players = (t.players || [])
+      .map((p) => `<div class="match-card"><div class="teams">${playerName(p)}</div>${playerAge(p) != null ? `<span class="badge">${playerAge(p)} J.</span>` : ""}</div>`)
+      .join("");
+    html += `<details style="margin-bottom:8px"><summary style="cursor:pointer;font-weight:700;font-size:13.5px;color:var(--rot-dunkel);padding:6px 0">${t.name} (${(t.players || []).length} Spieler)</summary>${players}</details>`;
+  });
   html += `</div>`;
 
   // K.O.-Baum

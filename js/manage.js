@@ -15,7 +15,7 @@ document.querySelectorAll(".tab-btn").forEach((btn) => {
     document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
     activeTab = btn.dataset.tab;
-    ["spielplan", "tabelle", "ko"].forEach((t) => (document.getElementById("tab-" + t).style.display = t === activeTab ? "block" : "none"));
+    ["spielplan", "tabelle", "ko", "teams"].forEach((t) => (document.getElementById("tab-" + t).style.display = t === activeTab ? "block" : "none"));
     render();
   });
 });
@@ -55,6 +55,15 @@ function teamName(id) {
   return currentData.teams?.[id]?.name || id;
 }
 
+// Ältere Turniere haben players als reine Namens-Strings gespeichert, neue als
+// {name, age}-Objekte - beide Formen werden hier vereinheitlicht.
+function playerName(p) {
+  return typeof p === "string" ? p : p.name;
+}
+function playerAge(p) {
+  return typeof p === "string" ? null : p.age ?? null;
+}
+
 function fmtTime(iso) {
   if (!iso) return "–";
   const d = new Date(iso);
@@ -66,6 +75,26 @@ function render() {
   if (activeTab === "spielplan") renderSpielplan();
   if (activeTab === "tabelle") renderTabelle();
   if (activeTab === "ko") renderKo();
+  if (activeTab === "teams") renderTeams();
+}
+
+// ---------- Teams ----------
+
+function renderTeams() {
+  const box = document.getElementById("tab-teams");
+  const teams = Object.values(currentData.teams || {});
+  if (teams.length === 0) {
+    box.innerHTML = `<div class="empty-state"><div class="icon">👥</div>Keine Teams vorhanden.</div>`;
+    return;
+  }
+  box.innerHTML = teams
+    .map((t) => {
+      const players = (t.players || [])
+        .map((p) => `<div class="match-card"><div class="teams">${playerName(p)}</div>${playerAge(p) != null ? `<span class="badge">${playerAge(p)} J.</span>` : ""}</div>`)
+        .join("");
+      return `<div class="group-title">${t.name} (${(t.players || []).length} Spieler)</div>${players}`;
+    })
+    .join("");
 }
 
 // ---------- Spielplan ----------

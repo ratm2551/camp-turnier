@@ -4,6 +4,7 @@ const state = {
   inputMode: "csv", // "csv" | "count"
   participants: [],
   hasTeamColumn: false,
+  hasAgeColumn: false,
   teams: [], // abgeleitet aus roster/teamRegistry, nur aktive Spieler, nur nicht-leere Teams
   roster: [], // [{ id, name, active, teamId }]
   teamRegistry: [], // [{ id, name }]
@@ -58,6 +59,7 @@ el("csvFile").addEventListener("change", async (e) => {
   errBox.style.display = "none";
   state.participants = result.participants;
   state.hasTeamColumn = result.hasTeamColumn;
+  state.hasAgeColumn = result.hasAgeColumn;
 
   if (result.hasTeamColumn) {
     state.teams = CsvParser.buildTeamsFromColumn(result.participants);
@@ -148,7 +150,7 @@ function updateParticipantsFromCount() {
     entries = [{ label: "", count: parseInt(el("totalPlayers").value, 10) || 0 }];
   }
   state.teams = CsvParser.buildTeamsFromCounts(entries, teamSize, nameStyle());
-  state.participants = state.teams.flatMap((t) => t.players.map((p) => ({ name: p, team: t.name })));
+  state.participants = state.teams.flatMap((t) => t.players.map((p) => ({ name: p.name, team: t.name, age: p.age })));
 
   renderParticipantsSummary();
   initRosterFromTeams(state.teams);
@@ -160,7 +162,7 @@ function renderParticipantsSummary() {
     state.inputMode === "csv"
       ? state.hasTeamColumn
         ? " (aus CSV-Spalte)"
-        : " (automatisch gebildet)"
+        : " (automatisch gebildet)" + (state.hasAgeColumn ? ", nach Alter sortiert" : "")
       : " (ohne Namensliste)";
   el("participantsSummary").innerHTML =
     `<p class="hint">${totalPlayers} Teilnehmer · <strong>${state.teams.length} Teams</strong>${sourceLabel}</p>`;
@@ -172,8 +174,8 @@ function initRosterFromTeams(teams) {
   state.teamRegistry = teams.map((t) => ({ id: t.id, name: t.name }));
   state.roster = [];
   teams.forEach((t) => {
-    t.players.forEach((name) => {
-      state.roster.push({ id: "r" + rosterIdCounter++, name, active: true, teamId: t.id });
+    t.players.forEach((p) => {
+      state.roster.push({ id: "r" + rosterIdCounter++, name: p.name, age: p.age ?? null, active: true, teamId: t.id });
     });
   });
   syncTeamsFromRoster();
@@ -186,7 +188,9 @@ function syncTeamsFromRoster() {
     .map((t) => ({
       id: t.id,
       name: t.name,
-      players: state.roster.filter((p) => p.teamId === t.id && p.active).map((p) => p.name),
+      players: state.roster
+        .filter((p) => p.teamId === t.id && p.active)
+        .map((p) => ({ name: p.name, age: p.age ?? null })),
     }))
     .filter((t) => t.players.length > 0);
 
@@ -213,7 +217,7 @@ function renderRoster() {
           (p) => `
         <div class="match-card" style="justify-content:flex-start;gap:10px">
           <input type="checkbox" class="rosterActive" data-player-id="${p.id}" ${p.active ? "checked" : ""} style="width:auto;flex:0 0 auto" />
-          <span style="flex:1;${p.active ? "" : "text-decoration:line-through;color:var(--muted)"}">${p.name}</span>
+          <span style="flex:1;${p.active ? "" : "text-decoration:line-through;color:var(--muted)"}">${p.name}${p.age != null ? ` <span class="badge">${p.age} J.</span>` : ""}</span>
           <select class="rosterMoveSelect" data-player-id="${p.id}" style="flex:0 0 140px" ${p.active ? "" : "disabled"}>
             ${state.teamRegistry.map((t) => `<option value="${t.id}" ${t.id === p.teamId ? "selected" : ""}>${t.name}</option>`).join("")}
             <option value="__new__">+ Neues Team</option>
@@ -505,6 +509,7 @@ el("btnResetWizard").addEventListener("click", () => {
   state.inputMode = "csv";
   state.participants = [];
   state.hasTeamColumn = false;
+  state.hasAgeColumn = false;
   state.teams = [];
   state.roster = [];
   state.teamRegistry = [];
