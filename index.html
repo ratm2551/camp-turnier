@@ -78,9 +78,18 @@
       </div>
     </div>
 
+    <div class="card" id="card-roster" style="display:none">
+      <button type="button" class="btn btn-secondary" id="btnBackRoster" style="width:auto;padding:6px 12px;font-size:12.5px;margin-bottom:12px">← Zurück zu Teilnehmern</button>
+      <h2><span class="step">2</span>Teams bearbeiten</h2>
+      <p class="hint">Spieler abwählen (nimmt dann nicht teil) oder in ein anderes Team verschieben.</p>
+      <div id="rosterSummary"></div>
+      <div id="rosterTeams"></div>
+      <button type="button" class="btn btn-secondary" id="btnAddTeam" style="margin-top:10px">+ Team hinzufügen</button>
+    </div>
+
     <div class="card" id="card-format" style="display:none">
-      <button type="button" class="btn btn-secondary" id="btnBackStep1" style="width:auto;padding:6px 12px;font-size:12.5px;margin-bottom:12px">← Zurück zu Teilnehmern</button>
-      <h2><span class="step">2</span>Turnierform</h2>
+      <button type="button" class="btn btn-secondary" id="btnBackStep1" style="width:auto;padding:6px 12px;font-size:12.5px;margin-bottom:12px">← Zurück zu Teams</button>
+      <h2><span class="step">3</span>Turnierform</h2>
 
       <div class="format-choice" data-format="liga">
         <h3>⚽ Liga-Modus</h3>
@@ -100,7 +109,7 @@
 
     <div class="card" id="card-time" style="display:none">
       <button type="button" class="btn btn-secondary" id="btnBackStep2" style="width:auto;padding:6px 12px;font-size:12.5px;margin-bottom:12px">← Zurück zur Turnierform</button>
-      <h2><span class="step">3</span>Zeit &amp; Plätze</h2>
+      <h2><span class="step">4</span>Zeit &amp; Plätze</h2>
       <div class="row">
         <div>
           <label for="startTime">Startzeit</label>
@@ -146,7 +155,7 @@
 
     <div class="card" id="card-create" style="display:none">
       <button type="button" class="btn btn-secondary" id="btnBackStep3" style="width:auto;padding:6px 12px;font-size:12.5px;margin-bottom:12px">← Zurück zu Zeit &amp; Plätze</button>
-      <h2><span class="step">4</span>Turnier erstellen</h2>
+      <h2><span class="step">5</span>Turnier erstellen</h2>
       <p class="hint" id="createSummary"></p>
       <button class="btn btn-primary" id="btnCreate">Turnier erstellen &amp; Spielplan generieren</button>
       <div class="error" id="createError" style="display:none"></div>

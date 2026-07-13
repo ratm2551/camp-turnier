@@ -4,10 +4,14 @@ const state = {
   inputMode: "csv", // "csv" | "count"
   participants: [],
   hasTeamColumn: false,
-  teams: [],
+  teams: [], // abgeleitet aus roster/teamRegistry, nur aktive Spieler, nur nicht-leere Teams
+  roster: [], // [{ id, name, active, teamId }]
+  teamRegistry: [], // [{ id, name }]
   format: null,
   formatOptions: {},
 };
+
+let rosterIdCounter = 0;
 
 const el = (id) => document.getElementById(id);
 
@@ -64,27 +68,27 @@ el("csvFile").addEventListener("change", async (e) => {
   }
 
   renderParticipantsSummary();
-  el("card-format").style.display = "block";
+  initRosterFromTeams(state.teams);
 });
 
 el("teamSize").addEventListener("input", () => {
   if (state.inputMode === "csv") {
     rebuildAutoTeams();
     renderParticipantsSummary();
+    initRosterFromTeams(state.teams);
   } else {
     updateParticipantsFromCount();
   }
-  recomputeCapacity();
 });
 
 el("useFootballerNames").addEventListener("change", () => {
   if (state.inputMode === "csv") {
     rebuildAutoTeams();
     renderParticipantsSummary();
+    initRosterFromTeams(state.teams);
   } else {
     updateParticipantsFromCount();
   }
-  recomputeCapacity();
 });
 
 function nameStyle() {
@@ -147,8 +151,7 @@ function updateParticipantsFromCount() {
   state.participants = state.teams.flatMap((t) => t.players.map((p) => ({ name: p, team: t.name })));
 
   renderParticipantsSummary();
-  el("card-format").style.display = state.teams.length > 0 ? "block" : "none";
-  recomputeCapacity();
+  initRosterFromTeams(state.teams);
 }
 
 function renderParticipantsSummary() {
@@ -163,7 +166,96 @@ function renderParticipantsSummary() {
     `<p class="hint">${totalPlayers} Teilnehmer · <strong>${state.teams.length} Teams</strong>${sourceLabel}</p>`;
 }
 
-// ---------- Schritt 2: Format ----------
+// ---------- Schritt 2: Teams bearbeiten (abwählen / verschieben) ----------
+
+function initRosterFromTeams(teams) {
+  state.teamRegistry = teams.map((t) => ({ id: t.id, name: t.name }));
+  state.roster = [];
+  teams.forEach((t) => {
+    t.players.forEach((name) => {
+      state.roster.push({ id: "r" + rosterIdCounter++, name, active: true, teamId: t.id });
+    });
+  });
+  syncTeamsFromRoster();
+  renderRoster();
+  el("card-roster").style.display = state.roster.length > 0 ? "block" : "none";
+}
+
+function syncTeamsFromRoster() {
+  state.teams = state.teamRegistry
+    .map((t) => ({
+      id: t.id,
+      name: t.name,
+      players: state.roster.filter((p) => p.teamId === t.id && p.active).map((p) => p.name),
+    }))
+    .filter((t) => t.players.length > 0);
+
+  renderRosterSummary();
+  el("card-format").style.display = state.teams.length >= 2 ? "block" : "none";
+  if (state.format) recomputeCapacity();
+}
+
+function renderRosterSummary() {
+  const totalActive = state.teams.reduce((sum, t) => sum + t.players.length, 0);
+  el("rosterSummary").innerHTML =
+    `<p class="hint">${totalActive} von ${state.roster.length} Teilnehmern aktiv · <strong>${state.teams.length} Teams</strong>` +
+    (state.teams.length < 2 ? ` <span class="badge warn">mind. 2 Teams nötig</span>` : "") +
+    `</p>`;
+}
+
+function renderRoster() {
+  const box = el("rosterTeams");
+  box.innerHTML = state.teamRegistry
+    .map((team) => {
+      const rows = state.roster
+        .filter((p) => p.teamId === team.id)
+        .map(
+          (p) => `
+        <div class="match-card" style="justify-content:flex-start;gap:10px">
+          <input type="checkbox" class="rosterActive" data-player-id="${p.id}" ${p.active ? "checked" : ""} style="width:auto;flex:0 0 auto" />
+          <span style="flex:1;${p.active ? "" : "text-decoration:line-through;color:var(--muted)"}">${p.name}</span>
+          <select class="rosterMoveSelect" data-player-id="${p.id}" style="flex:0 0 140px" ${p.active ? "" : "disabled"}>
+            ${state.teamRegistry.map((t) => `<option value="${t.id}" ${t.id === p.teamId ? "selected" : ""}>${t.name}</option>`).join("")}
+            <option value="__new__">+ Neues Team</option>
+          </select>
+        </div>`
+        )
+        .join("");
+      const activeCount = state.roster.filter((p) => p.teamId === team.id && p.active).length;
+      return `<div class="group-title">${team.name} (${activeCount} aktiv)</div>${rows}`;
+    })
+    .join("");
+}
+
+el("rosterTeams").addEventListener("change", (e) => {
+  const pid = e.target.dataset.playerId;
+  if (!pid) return;
+  const player = state.roster.find((p) => p.id === pid);
+  if (!player) return;
+
+  if (e.target.classList.contains("rosterActive")) {
+    player.active = e.target.checked;
+  } else if (e.target.classList.contains("rosterMoveSelect")) {
+    let targetTeamId = e.target.value;
+    if (targetTeamId === "__new__") {
+      const newTeam = { id: "team_new_" + Date.now(), name: "Team " + (state.teamRegistry.length + 1) };
+      state.teamRegistry.push(newTeam);
+      targetTeamId = newTeam.id;
+    }
+    player.teamId = targetTeamId;
+  }
+  syncTeamsFromRoster();
+  renderRoster();
+});
+
+el("btnAddTeam").addEventListener("click", () => {
+  state.teamRegistry.push({ id: "team_new_" + Date.now(), name: "Team " + (state.teamRegistry.length + 1) });
+  renderRoster();
+});
+
+el("btnBackRoster").addEventListener("click", () => goToStep("card-teilnehmer"));
+
+// ---------- Schritt 3: Format ----------
 
 document.querySelectorAll(".format-choice").forEach((elm) => {
   elm.addEventListener("click", () => {
@@ -395,7 +487,7 @@ if (lastCode) el("joinCode").value = lastCode;
 
 // ---------- Zurück-Navigation & Reset ----------
 
-const STEP_ORDER = ["card-teilnehmer", "card-format", "card-time", "card-create"];
+const STEP_ORDER = ["card-teilnehmer", "card-roster", "card-format", "card-time", "card-create"];
 
 function goToStep(stepId) {
   const idx = STEP_ORDER.indexOf(stepId);
@@ -405,7 +497,7 @@ function goToStep(stepId) {
   el(stepId).scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-el("btnBackStep1").addEventListener("click", () => goToStep("card-teilnehmer"));
+el("btnBackStep1").addEventListener("click", () => goToStep("card-roster"));
 el("btnBackStep2").addEventListener("click", () => goToStep("card-format"));
 el("btnBackStep3").addEventListener("click", () => goToStep("card-time"));
 
@@ -414,6 +506,8 @@ el("btnResetWizard").addEventListener("click", () => {
   state.participants = [];
   state.hasTeamColumn = false;
   state.teams = [];
+  state.roster = [];
+  state.teamRegistry = [];
   state.format = null;
 
   el("turnierName").value = "";
@@ -444,6 +538,9 @@ el("btnResetWizard").addEventListener("click", () => {
   el("btnCreate").textContent = "Turnier erstellen & Spielplan generieren";
   el("createError").style.display = "none";
 
-  ["card-format", "card-time", "card-create", "card-done"].forEach((id) => (el(id).style.display = "none"));
+  el("rosterSummary").innerHTML = "";
+  el("rosterTeams").innerHTML = "";
+
+  ["card-roster", "card-format", "card-time", "card-create", "card-done"].forEach((id) => (el(id).style.display = "none"));
   el("card-teilnehmer").scrollIntoView({ behavior: "smooth", block: "start" });
 });
