@@ -98,12 +98,16 @@ input[type="text"], input[type="number"], input[type="time"], select, textarea {
   padding: 12px;
   border: 1px solid var(--border);
   border-radius: 10px;
-  font-size: 15px;
+  font-size: 16px; /* >=16px verhindert iOS-Safari-Autozoom beim Fokussieren (verschobene Touch-Koordinaten danach) */
   background: #fff;
   color: var(--text);
 }
 
 input:focus, select:focus, textarea:focus { outline: 2px solid var(--rot); outline-offset: 1px; }
+
+button, .btn, .format-choice, .tabs button, .tab-btn {
+  touch-action: manipulation;
+}
 
 .btn {
   display: inline-flex;

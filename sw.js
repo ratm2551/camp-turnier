@@ -1,4 +1,4 @@
-const CACHE_NAME = "camp-turnier-v1";
+const CACHE_NAME = "camp-turnier-v2";
 const SHELL_FILES = [
   "index.html",
   "manage.html",
@@ -27,19 +27,18 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+// Network-first: immer die aktuelle Version laden, wenn online. Der Cache dient
+// nur als Fallback für Offline-Nutzung (nicht um veraltetes JS auszuliefern).
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return; // Firebase-Requests unangetastet lassen
 
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const network = fetch(event.request)
-        .then((resp) => {
-          if (resp.ok) caches.open(CACHE_NAME).then((cache) => cache.put(event.request, resp.clone()));
-          return resp;
-        })
-        .catch(() => cached);
-      return cached || network;
-    })
+    fetch(event.request)
+      .then((resp) => {
+        if (resp.ok) caches.open(CACHE_NAME).then((cache) => cache.put(event.request, resp.clone()));
+        return resp;
+      })
+      .catch(() => caches.match(event.request))
   );
 });

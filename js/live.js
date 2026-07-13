@@ -34,6 +34,14 @@ function render(data) {
   let html = "";
 
   // Champion-Banner
+  if (data.meta.format === "liga" && matches.length > 0 && matches.every((m) => m.status === "done")) {
+    const standings = TournamentEngine.computeStandings(teams, matches);
+    html += `<div class="card" style="text-align:center;background:linear-gradient(135deg,#d31920,#a8121a);color:#fff;border:none">
+      <div style="font-size:36px">🏆</div>
+      <h2 style="color:#fff;font-size:20px;margin:6px 0 2px">${standings[0].name}</h2>
+      <div style="opacity:0.9;font-size:13px">ist Turniersieger! Alle Spiele sind gespielt.</div>
+    </div>`;
+  }
   if (data.ko) {
     const roundKeys = Object.keys(data.ko.rounds).sort((a, b) => Number(a) - Number(b));
     const lastRound = data.ko.rounds[roundKeys[roundKeys.length - 1]];

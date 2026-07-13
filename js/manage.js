@@ -35,6 +35,14 @@ CampSync.listen(CODE, (data) => {
   currentData = data;
   document.getElementById("turnierTitel").textContent = data.meta.name;
   document.getElementById("turnierSub").textContent = "Code: " + CODE + " · " + formatLabel(data.meta.format);
+
+  const koTabBtn = document.querySelector('.tab-btn[data-tab="ko"]');
+  if (koTabBtn) koTabBtn.style.display = data.meta.format === "liga" ? "none" : "";
+  if (data.meta.format === "liga" && activeTab === "ko") {
+    document.querySelector('.tab-btn[data-tab="tabelle"]').click();
+    return;
+  }
+
   render();
 });
 
@@ -137,10 +145,20 @@ function renderTabelle() {
     const groups = Object.values(currentData.groups);
     const byGroup = TournamentEngine.standingsByGroup(teams, groups, matches);
     box.innerHTML = byGroup.map((g) => `<div class="group-title">${g.groupName}</div>${tableHtml(g.standings)}`).join("");
-  } else {
-    const standings = TournamentEngine.computeStandings(teams, matches);
-    box.innerHTML = tableHtml(standings);
+    return;
   }
+
+  const standings = TournamentEngine.computeStandings(teams, matches);
+  let html = "";
+  if (currentData.meta.format === "liga" && matches.length > 0 && matches.every((m) => m.status === "done")) {
+    html += `<div class="card" style="text-align:center;background:linear-gradient(135deg,#d31920,#a8121a);color:#fff;border:none;margin-bottom:14px">
+      <div style="font-size:36px">🏆</div>
+      <h2 style="color:#fff;font-size:20px;margin:6px 0 2px">${standings[0].name}</h2>
+      <div style="opacity:0.9;font-size:13px">ist Turniersieger! Alle Spiele sind gespielt.</div>
+    </div>`;
+  }
+  html += tableHtml(standings);
+  box.innerHTML = html;
 }
 
 function tableHtml(standings) {
